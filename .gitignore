@@ -1,0 +1,12 @@
+# Virtual environment — machine-specific absolute paths. Never commit this:
+# a copied venv produces a server that cannot start, with no error shown.
+.venv/
+__pycache__/
+*.pyc
+
+# One-off config backups written by setup.ps1 / Merge-ClaudeDesktopConfig.ps1
+*.bak-*
+
+# Local scratch
+.env
+*.log
