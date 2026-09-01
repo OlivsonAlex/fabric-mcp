@@ -114,13 +114,13 @@ Three outcomes:
 - **No logins.** `-Auto` stops and tells them to run `az login`. Relay that, wait, retry.
   Do not attempt `az login` yourself — it needs their browser and MFA.
 - **Exactly one login.** `-Auto` picks that subscription and derives an instance name from
-  the account's domain (`abrams@huliot.com` → `fabric-huliot`). Show the human which
+  the account's domain (`user@clientb.com` → `fabric-clientb`). Show the human which
   identity it chose and get a yes before registering.
 - **Several logins.** `-Auto` prints a numbered list with a ready-to-run command per
   identity and writes nothing. **Ask which client they want.** Register one at a time.
 
 The `-Name` in those suggested commands is derived from the account's domain
-(`baram-group.com` → `fabric-baram-group`) and is only a suggestion. Before running one,
+(`client-group.com` → `fabric-client-group`) and is only a suggestion. Before running one,
 check whether an instance for that identity already exists under a different name — with
 `.\diagnose.ps1`, which lists every `fabric*` entry. If it does, reuse the existing name,
 or you will create a second instance for the same account rather than updating the first.
@@ -207,6 +207,53 @@ but you can confirm the outcome that config produces — which is the thing that
    fields from step A7.
 
 Realistic human involvement: three commands pasted, one browser sign-in, one restart.
+
+---
+
+# Part C — the Power BI Modeling MCP
+
+A second server covers semantic models over XMLA. Full detail in
+[POWERBI-MCP.md](POWERBI-MCP.md); this section is the part you must not get wrong.
+
+## Registering it
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Register-PowerBIMcp.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Register-PowerBIMcp.ps1
+```
+
+Same constraints as `setup.ps1`: Claude Desktop must be fully quit, and the script writes a
+timestamped backup. It registers two entries, `--readonly` and `--readwrite`.
+
+**Never register the read-write entry alone, and never drop the reader to `--start`.**
+`--start` means read-write. An entry named like a reader that can delete measures on a
+client's published model is the failure this split exists to prevent.
+
+## Connecting, and what you must not do
+
+Connections are runtime state. There is no config-level target, and every restart drops
+them. To connect you need a workspace name and a model name, matched exactly.
+
+- **Never guess which model or which identity.** Model display names repeat across
+  workspaces; connecting to the wrong one means reading another environment, or another
+  client. Ask.
+- **A 60-second timeout is not a failure.** `ConnectFabric` blocks on an Entra account
+  picker, the bridge gives up, the server finishes anyway. Call `ListConnections` before
+  retrying, or you create duplicates.
+- **Never attempt a write to verify the read-only guard.** `--readonly` refuses at runtime
+  rather than removing the operations from the schema, so the only way to test it is a real
+  write. Do not do that against a published model. `ConnectFolder` against a local PBIP
+  folder is the safe way if someone asks.
+- **Rename every connection** to something short. Auto-generated names are URL-encoded.
+- **Report the identity, not the connection name.** As with fabric-mcp, the name is a label
+  someone chose.
+
+## Reading a model without flooding the conversation
+
+`measure_operations List` truncates at `maxResults` (default 200) and reports the true total
+only in a `warnings` array. Read it, and say the real number. `List` returns no DAX; use
+`Get` or `ExportTMDL` with `maxReturnCharacters` per measure. Never dump a whole model
+definition into the conversation.
 
 ---
 

@@ -5,6 +5,10 @@ identity** — no service principal, no client secret, no stored credentials.
 
 **Start here:** [INSTALL.md](INSTALL.md) to get it running · [USAGE.md](USAGE.md) for the tools.
 
+For the **semantic model** side (measures, DAX, relationships over XMLA) see
+[POWERBI-MCP.md](POWERBI-MCP.md) — Microsoft's Power BI Modeling MCP, registered by
+`Register-PowerBIMcp.ps1` in this repo.
+
 Two surfaces, one sign-in:
 
 | Surface | Audience | What it gives you |

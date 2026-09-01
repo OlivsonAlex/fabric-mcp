@@ -127,7 +127,7 @@ if ($Auto) {
     }
 
     function Get-DefaultName($upn) {
-        # abrams@huliot.com -> fabric-huliot
+        # user@clientb.com -> fabric-clientb
         $domain = ($upn -split "@")[-1]
         $label  = ($domain -split "\.")[0]
         $label  = ($label -replace "[^a-zA-Z0-9-]", "").ToLower()
