@@ -27,8 +27,14 @@ identity you will use.** Step 3 covers it.
 
 ## Step 1 — Get the folder
 
-This server has no upstream repository — it is internal code. Get it from whoever sent
-you this document. You need these five files in one directory:
+Clone it (private repo — ask Alex for access if you get a 404):
+
+```powershell
+git clone https://github.com/OlivsonAlex/fabric-mcp.git
+cd fabric-mcp
+```
+
+That gives you:
 
 ```
 fabric_mcp_server.py    the server

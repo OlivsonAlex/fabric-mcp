@@ -26,7 +26,8 @@ audit log under your name.
 ## Install
 
 ```powershell
-cd C:\Users\<you>\Claude\Projects\fabric-mcp
+git clone https://github.com/OlivsonAlex/fabric-mcp.git
+cd fabric-mcp
 .\setup.ps1 -RegisterClaude
 ```
 

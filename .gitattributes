@@ -1,0 +1,11 @@
+# Normalize in the repo, check out per-platform.
+* text=auto eol=lf
+
+# PowerShell must stay CRLF in the working tree, and these files carry a UTF-8 BOM
+# on purpose: PowerShell 5.1 reads a BOM-less UTF-8 file as ANSI and mangles the
+# non-ASCII characters in their comments and output strings.
+*.ps1 text eol=crlf
+
+*.py  text eol=lf
+*.md  text eol=lf
+*.txt text eol=lf
