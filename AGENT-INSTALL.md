@@ -119,6 +119,12 @@ Three outcomes:
 - **Several logins.** `-Auto` prints a numbered list with a ready-to-run command per
   identity and writes nothing. **Ask which client they want.** Register one at a time.
 
+The `-Name` in those suggested commands is derived from the account's domain
+(`baram-group.com` → `fabric-baram-group`) and is only a suggestion. Before running one,
+check whether an instance for that identity already exists under a different name — with
+`.\diagnose.ps1`, which lists every `fabric*` entry. If it does, reuse the existing name,
+or you will create a second instance for the same account rather than updating the first.
+
 ## A5. Register
 
 Claude Desktop must be fully quit first — the script refuses otherwise, deliberately. You

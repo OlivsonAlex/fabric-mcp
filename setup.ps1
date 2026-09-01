@@ -100,9 +100,26 @@ if ($Auto) {
 
     if (-not $az) { Bad "-Auto needs the Azure CLI. Install it, or pass -Subscription yourself."; exit 1 }
 
-    $accountsJson = & az account list --all --query "[].{user:user.name, tenant:tenantId, sub:name, id:id}" -o json 2>$null
+    # A native command returns its output as an ARRAY OF LINES, and PowerShell 5.1's
+    # ConvertFrom-Json emits a parsed JSON array as a SINGLE object instead of
+    # enumerating it. Piping straight into @( ... ) therefore yields Count=1 holding an
+    # array of every account, and member enumeration then joins their values together --
+    # producing a "subscription id" made of two GUIDs. Join the lines, convert by
+    # argument rather than by pipeline, and flatten one level defensively.
+    $accountsRaw = (& az account list --all --query "[].{user:user.name, tenant:tenantId, sub:name, id:id}" -o json 2>$null) -join "`n"
     $accounts = @()
-    if ($accountsJson) { try { $accounts = @($accountsJson | ConvertFrom-Json) } catch { } }
+    if ($accountsRaw) {
+        try {
+            $parsed = ConvertFrom-Json $accountsRaw
+            if ($null -ne $parsed) { $accounts = @($parsed) }
+            if ($accounts.Count -eq 1 -and $accounts[0] -is [System.Collections.IEnumerable] -and $accounts[0] -isnot [string]) {
+                $accounts = @($accounts[0])
+            }
+        } catch {
+            Bad "could not parse 'az account list' output: $($_.Exception.Message)"
+            exit 1
+        }
+    }
 
     if ($accounts.Count -eq 0) {
         Bad "No az logins found. Run 'az login' (add --tenant <guid> for a client tenant, and --allow-no-subscriptions if it grants none), then re-run."
@@ -141,6 +158,14 @@ if ($Auto) {
         Write-Host "  Register one per client you need. Nothing was written." -ForegroundColor Yellow
         exit 0
     }
+}
+
+# One malformed selector reaches Fabric as an unreadable "Subscription '...' not found",
+# so fail here with a message that names the actual problem.
+if ($Subscription -and $Subscription -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+    Bad "-Subscription must be a single subscription GUID. Got: '$Subscription'"
+    Write-Host "  List them with:  az account list --all --query ""[].{user:user.name, id:id}"" -o table" -ForegroundColor Yellow
+    exit 1
 }
 
 if ($TenantId -and $Subscription) {
