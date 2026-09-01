@@ -10,6 +10,11 @@ Written for Windows with Claude Desktop, which is what the team runs.
 
 ---
 
+> **Letting Claude do it:** point Claude at
+> [AGENT-INSTALL.md](AGENT-INSTALL.md) instead — it is a runbook written for Claude, with
+> both the Claude Code and Cowork paths. You still do the `az login`, pick the identity,
+> and restart the app; Claude does the rest.
+
 ## Before you start
 
 | Requirement | Notes |

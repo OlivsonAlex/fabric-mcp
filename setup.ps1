@@ -15,6 +15,7 @@ param(
     [string]$Name = "fabric",
     [switch]$RegisterFabricCore,
     [switch]$CoreOnly,
+    [switch]$Auto,
     [string[]]$RemoveServer = @()
 )
 
@@ -87,6 +88,59 @@ if ($az) {
     if ($acct) { Ok "signed in as $($acct.user.name) (tenant $($acct.tenantId))" }
 } else {
     Warn "Skipped - no Azure CLI."
+}
+
+# ------------------------------------------------------------------ -Auto
+# Removes the GUID-hunting step. Enumerates the stored az logins and, when there is
+# exactly one, registers against it without asking. With several, it prints the
+# ready-to-run command for each and stops -- picking the client identity is a human
+# decision, not a default worth guessing.
+if ($Auto) {
+    Step "Auto-detecting identity"
+
+    if (-not $az) { Bad "-Auto needs the Azure CLI. Install it, or pass -Subscription yourself."; exit 1 }
+
+    $accountsJson = & az account list --all --query "[].{user:user.name, tenant:tenantId, sub:name, id:id}" -o json 2>$null
+    $accounts = @()
+    if ($accountsJson) { try { $accounts = @($accountsJson | ConvertFrom-Json) } catch { } }
+
+    if ($accounts.Count -eq 0) {
+        Bad "No az logins found. Run 'az login' (add --tenant <guid> for a client tenant, and --allow-no-subscriptions if it grants none), then re-run."
+        exit 1
+    }
+
+    function Get-DefaultName($upn) {
+        # abrams@huliot.com -> fabric-huliot
+        $domain = ($upn -split "@")[-1]
+        $label  = ($domain -split "\.")[0]
+        $label  = ($label -replace "[^a-zA-Z0-9-]", "").ToLower()
+        if ($label) { return "fabric-$label" } else { return "fabric" }
+    }
+
+    if ($Subscription) {
+        Warn "-Subscription was given explicitly; -Auto will not override it."
+    }
+    elseif ($accounts.Count -eq 1) {
+        $only = $accounts[0]
+        $Subscription = $only.id
+        if (-not $PSBoundParameters.ContainsKey("Name")) { $Name = Get-DefaultName $only.user }
+        Ok "one login found: $($only.user)"
+        Ok "using subscription $($only.id) ($($only.sub)) as instance '$Name'"
+    }
+    else {
+        Write-Host "`n  $($accounts.Count) logins found. Pick the identity you want and run one of these:`n" -ForegroundColor Yellow
+        $i = 0
+        foreach ($acct in $accounts) {
+            $i++
+            $suggested = Get-DefaultName $acct.user
+            Write-Host ("  [{0}] {1}" -f $i, $acct.user)
+            Write-Host ("      tenant {0}  subscription {1}" -f $acct.tenant, $acct.sub) -ForegroundColor DarkGray
+            Write-Host ("      .\setup.ps1 -RegisterClaude -Name {0} -Subscription {1}" -f $suggested, $acct.id) -ForegroundColor Cyan
+            Write-Host ""
+        }
+        Write-Host "  Register one per client you need. Nothing was written." -ForegroundColor Yellow
+        exit 0
+    }
 }
 
 if ($TenantId -and $Subscription) {
