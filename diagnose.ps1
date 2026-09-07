@@ -110,12 +110,57 @@ except Exception:
 '@
 $whoFile = Join-Path $env:TEMP "fabric_mcp_who.py"
 Set-Content -Path $whoFile -Value $who -Encoding UTF8
-if (Test-Path $py) { & $py $whoFile $srv }
+
+# Probe ONCE PER REGISTERED INSTANCE, using that entry's own env block. Running the
+# server bare reports whichever az account happens to be active, under instance
+# "default" - which is not any registered instance, and reads as a real result.
+if (-not (Test-Path $py)) {
+    Write-Host "  skipped - no interpreter at $py" -ForegroundColor Yellow
+}
+else {
+    $probed = $false
+    if ($j -and $fabricNames -and $fabricNames.Count -gt 0) {
+        foreach ($n in $fabricNames) {
+            Write-Host "`n--- $n" -ForegroundColor DarkGray
+            foreach ($v in "FABRIC_MCP_INSTANCE","FABRIC_MCP_TENANT_ID","FABRIC_MCP_AZ_SUBSCRIPTION") {
+                Remove-Item ("Env:\" + $v) -ErrorAction SilentlyContinue
+            }
+            $envBlock = $j.mcpServers.$n.env
+            if ($envBlock) {
+                foreach ($prop in $envBlock.PSObject.Properties) {
+                    Set-Item -Path ("Env:\" + $prop.Name) -Value $prop.Value
+                }
+            } else {
+                Write-Host "  WARNING: '$n' has no env block - it follows the active az account" -ForegroundColor Yellow
+            }
+            & $py $whoFile $srv
+            $probed = $true
+        }
+        foreach ($v in "FABRIC_MCP_INSTANCE","FABRIC_MCP_TENANT_ID","FABRIC_MCP_AZ_SUBSCRIPTION") {
+            Remove-Item ("Env:\" + $v) -ErrorAction SilentlyContinue
+        }
+    }
+    if (-not $probed) {
+        Write-Host "  no registered fabric* entry to probe." -ForegroundColor Yellow
+        Write-Host "  Falling back to the AMBIENT az identity, which is NOT any instance:" -ForegroundColor Yellow
+        & $py $whoFile $srv
+    }
+}
 Remove-Item $whoFile -ErrorAction SilentlyContinue
 
 Head "6. Newest Claude MCP logs"
 # $logDir was resolved alongside $cfg so it follows the MSIX path too.
 if (Test-Path $logDir) {
+    $newest = Get-ChildItem $logDir -Filter "*mcp*" -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($newest) {
+        $ageDays = [math]::Round(((Get-Date) - $newest.LastWriteTime).TotalDays, 1)
+        Write-Host "  newest log: $($newest.Name)  ($ageDays days old)"
+        if ($ageDays -gt 2) {
+            Write-Host "  WARNING: the newest log is $ageDays days old despite recent restarts." -ForegroundColor Yellow
+            Write-Host "  Claude Desktop may have stopped logging here - do not trust these for current problems." -ForegroundColor Yellow
+        }
+    }
     Get-ChildItem $logDir -Filter "*mcp*" -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -First 4 |
         ForEach-Object {

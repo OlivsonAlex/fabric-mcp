@@ -169,8 +169,15 @@ Desktop or Analysis Services via a connection string, `ConnectFolder` for a loca
 
 ## Notes on provenance
 
-Microsoft's README documents an `--authmode` flag (`interactive` or `serviceprincipal`)
-that is absent from the `--help` of the VSIX build tested here, so builds differ in more
-than flag spelling. npm reports the package licence as `Microsoft`; the repository README
+The two routes are **not the same version**. The VSIX build in use here reports
+`powerbi-modeling-mcp 0.1.9.0` in the Claude MCP log, while npm's latest is
+`0.5.0-beta.13`. That is a wide gap, and it explains the CLI differences: Microsoft's README
+documents an `--authmode` flag (`interactive` or `serviceprincipal`) that is absent from
+`--help` on 0.1.9.0.
+
+Practical consequence: a teammate installed from npm is running a substantially newer server
+than 0.1.9.0. The `--readonly` / `--readwrite` aliases are accepted by both, but nothing else
+about behaviour has been compared. If two people see different results, check versions first
+— the log line above is the quickest way. npm reports the package licence as `Microsoft`; the repository README
 has been described as MIT. Check the package you actually install rather than trusting
 either summary.
