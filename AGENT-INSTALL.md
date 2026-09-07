@@ -64,6 +64,30 @@ is blocked by default, and the failure looks like a script error rather than a p
 If you see `cannot be loaded because running scripts is disabled`, that is policy — report
 it and stop; the human may need IT to allow it.
 
+## A0.5 Find out whether you are inside Claude Desktop's process tree
+
+**Do this before planning anything.** Being able to run PowerShell does not mean you are a
+separate process from Claude Desktop. Claude Code can run *inside* it
+(`powershell <- claude-code <- Claude.exe`), and in that case the tray-quit step below
+kills you mid-install.
+
+```
+powershell -NoProfile -Command "$c=Get-CimInstance Win32_Process -Filter \"ProcessId=$PID\"; $chain=@(); for($i=0;$i -lt 6 -and $c;$i++){ $chain+=\"$($c.Name)($($c.ProcessId))\"; if(-not $c.ParentProcessId){break}; $c=Get-CimInstance Win32_Process -Filter \"ProcessId=$($c.ParentProcessId)\" -ErrorAction SilentlyContinue }; $chain -join ' <- '"
+```
+
+If `Claude.exe` appears anywhere in that chain, you are in **mode 3** and cannot complete the
+install yourself, because the registration scripts refuse to write while Claude Desktop is
+alive and quitting it ends your session. Say so up front rather than discovering it after
+several failed rounds, and use the deferred route in A5b.
+
+Three modes, not two:
+
+| Mode | PowerShell | Can you finish the install? |
+|---|---|---|
+| 1. Terminal outside Claude Desktop | yes | yes |
+| 2. Cowork / connected folder (Part B) | no | no — you prepare, the human runs |
+| 3. Claude Code inside Claude Desktop | yes | no — quitting the app kills you. Use A5b |
+
 ## A1. Confirm you are in the right folder
 
 ```
@@ -111,6 +135,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 -Auto
 
 Three outcomes:
 
+If `-Auto` is blocked by your own permission rules rather than by anything in the repo, read
+the identities directly instead — `az account list` is the authoritative source this runbook
+names anyway, so nothing is lost:
+
+```
+az account list --all --query "[].{user:user.name, tenant:tenantId, subscription:name, id:id}" -o json
+```
+
+Then use the `id` of the chosen identity as `-Subscription`. Do not treat a blocked `-Auto`
+as a broken install.
+
 - **No logins.** `-Auto` stops and tells them to run `az login`. Relay that, wait, retry.
   Do not attempt `az login` yourself — it needs their browser and MFA.
 - **Exactly one login.** `-Auto` picks that subscription and derives an instance name from
@@ -140,6 +175,24 @@ they restart.** If it is not the account they named, the install is wrong even t
 command succeeded — say so plainly.
 
 Repeat this step per client identity. Each is an independent instance.
+
+## A5b. Deferred registration, for mode 3
+
+When `Claude.exe` is in your parent chain, hand the write to a process that outlives you.
+`Register-WhenClosed.ps1` waits for Claude Desktop to exit, runs the registration, and logs
+the result. Launch it **detached** so it is not killed with you:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath powershell -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','.\Register-WhenClosed.ps1','-Script','.\setup.ps1','-Arguments','-RegisterClaude,-Name,fabric-<client>,-Subscription,<guid>')"
+```
+
+Then tell the human, in one message, to quit Claude Desktop from the tray and reopen it. When
+they are back, read `_local\register-when-closed.log`. It records the parent chain, whether
+the app actually exited, the full output of the registration, and the exit code.
+
+If the log shows the waiter itself never ran, Claude Desktop terminated its whole process
+tree on exit. In that case the write has to be started from a shell the agent did not spawn:
+give the human the plain `setup.ps1 -RegisterClaude ...` command to run after quitting.
 
 ## A6. Hand back for the restart
 

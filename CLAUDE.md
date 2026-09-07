@@ -60,11 +60,25 @@ committing, not just the file you touched.
 registered config points into it, so a copied venv yields a server that cannot start with no
 error shown. `.gitignore` covers it; confirm with `git status` before committing.
 
+## A trap that has cost real time
+
+Being able to run PowerShell does not mean you are outside Claude Desktop. Claude Code can
+run inside its process tree (`powershell <- claude-code <- Claude.exe`), and every
+registration script here refuses to write while Claude Desktop is alive — so quitting the app
+to satisfy that guard ends your own session. Check the parent chain with
+`Get-CimInstance Win32_Process` before planning an install, and use
+`Register-WhenClosed.ps1` if `Claude.exe` is in it. AGENT-INSTALL.md A0.5 and A5b cover this.
+
 ## State of testing
 
 Honest as of the last commit: `setup.ps1` has been exercised in dry-run, register, `-Auto`
 (both the single-login and multi-login branches) and `-RemoveServer`.
 `Register-PowerBIMcp.ps1` has been dry-run on both the existing-exe and npx paths, but never
 applied. `diagnose.ps1` has not been run since its config-path resolution was fixed. The npm
-package route has never been started on any machine. The whole install has only ever been
-performed by its author, on the machine it was written for.
+package route has never been started on any machine. `Register-WhenClosed.ps1` has never been
+run at all.
+
+Confirmed on a second machine by another person: the MSIX config-path resolution works and
+writes to the right file, and the prerequisites were already satisfied there (ODBC Driver 18
+present, no execution-policy change, no IT involvement). The `-Auto` switch was blocked by
+that agent's own permission rules, not by anything in the repo.

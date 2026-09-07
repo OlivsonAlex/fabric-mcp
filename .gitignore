@@ -10,3 +10,7 @@ __pycache__/
 # Local scratch
 .env
 *.log
+
+# Machine-local scratch: deferred-registration logs, one-off helpers.
+# Logs can contain account names and tenant ids, so this must never be committed.
+_local/
